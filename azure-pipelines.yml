@@ -1,0 +1,25 @@
+trigger:
+- master
+
+pool:
+  name: DevOps
+  demands:
+    - Agent.Name -equals vagrant-azdo-agent-2
+
+variables:
+  dockerRegistryServiceConnection: 'DockerHub-Service-Connection'
+  imageRepository: 'hicham00/my-app'
+  dockerfilePath: 'Dockerfile'
+  tag: '$(Build.BuildId)'
+
+steps:
+- task: Docker@2
+  displayName: Build and Push Docker Image to Docker Hub
+  inputs:
+    command: buildAndPush
+    repository: $(imageRepository)
+    dockerfile: $(dockerfilePath)
+    containerRegistry: $(dockerRegistryServiceConnection)
+    tags: |
+      $(tag)
+      latest
