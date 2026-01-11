@@ -1,25 +1,39 @@
-trigger:
-- master
+# --------------------
+# Stage 1 - Build
+# --------------------
+FROM node:18-alpine AS builder
 
-pool:
-  name: DevOps
-  demands:
-    - Agent.Name -equals vagrant-azdo-agent-2
+# Crée le répertoire de travail
+WORKDIR /app
 
-variables:
-  dockerRegistryServiceConnection: 'DockerHub-Service-Connection'
-  imageRepository: 'hicham00/my-app'
-  dockerfilePath: 'Dockerfile'
-  tag: '$(Build.BuildId)'
+# Copie package.json et package-lock.json pour installer les dépendances
+COPY package*.json ./
 
-steps:
-- task: Docker@2
-  displayName: Build and Push Docker Image to Docker Hub
-  inputs:
-    command: buildAndPush
-    repository: $(imageRepository)
-    dockerfile: $(dockerfilePath)
-    containerRegistry: $(dockerRegistryServiceConnection)
-    tags: |
-      $(tag)
-      latest
+# Installe les dépendances
+RUN npm install
+
+# Copie tout le code source
+COPY . .
+
+# Build de l’application (Angular / Node)
+RUN npm run build --prod
+
+# --------------------
+# Stage 2 - Production
+# --------------------
+FROM nginx:alpine
+
+# Supprime le default.conf de nginx
+RUN rm -rf /etc/nginx/conf.d/default.conf
+
+# Copie le fichier de configuration nginx (si tu en as un)
+# COPY nginx.conf /etc/nginx/conf.d
+
+# Copie les fichiers build du stage précédent
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Expose le port
+EXPOSE 80
+
+# Commande par défaut
+CMD ["nginx", "-g", "daemon off;"]
